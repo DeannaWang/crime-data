@@ -1,0 +1,6 @@
+flask
+flask-restful
+mongoengine
+openpyxl
+requests
+dicttoxml

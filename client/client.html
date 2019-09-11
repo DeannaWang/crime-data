@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Client</title>
+</head>
+<body>
+<script>
+
+    const base_url = "http://127.0.0.1:5000";
+    const auth_url = "/auth";
+    const entry_url = "/nsw_recorded_crime_statistics";
+    const filter_url = "/filter";
+
+    function login()
+    {
+        let parent_tag = document.getElementById("login_result");
+        let token_tag = document.getElementById("token");
+        let login_url = base_url + auth_url;
+        fetch(login_url, {
+            method: 'POST',
+            body: JSON.stringify({
+                username: document.getElementById("username").value,
+                password: document.getElementById("password").value
+            }),
+            headers: {'Content-Type': 'application/json'}
+        }).then((response) => response.json()).then(function(data){
+            let token_response = document.createElement('li');
+            token_response.innerHTML = `${data.info}`;
+            parent_tag.appendChild(token_response);
+            token_tag.value = `${data.token}`;
+        })
+    }
+
+    function fetch_data(url, method, body='') {
+        let response_tag = document.getElementById("response");
+        let status_tag = document.getElementById("status_code");
+        let radio = document.getElementsByName("accept");
+        let accept = "";
+        for (i=0; i<radio.length; i++) {
+            if (radio[i].checked) {
+                accept = radio[i].value;
+            }
+        }
+        let params = {
+            method: method,
+            headers: {'Accept': accept, 'AUTH_TOKEN': document.getElementById("token").value, 'Content-Type': 'application/json'}
+        };
+        if (body != '') {
+            params['body'] = body;
+        }
+        fetch(url, params).then(function(response) {
+            status_tag.innerHTML = response.status;
+            response.text().then(function(data){
+                response_tag.innerHTML = data;
+            });
+        });
+    }
+
+    function import_lga(){
+        let url = base_url + entry_url;
+        let body = JSON.stringify({
+            lgaName: document.getElementById("lganame").value
+        });
+        fetch_data(url, 'POST', body);
+    }
+
+    function import_postcode()
+    {
+        let body = JSON.stringify({
+            postcode: document.getElementById("postcode").value
+        });
+        let url = base_url + entry_url;
+        fetch_data(url, 'POST', body);
+    }
+
+    function delete_one()
+    {
+        if (document.getElementById("delete_id").value == "") {
+            alert("entry id cannot be empty");
+            return;
+        }
+        let url = base_url + entry_url + "/" + document.getElementById("delete_id").value;
+        fetch_data(url, 'DELETE');
+    }
+
+    function get_all()
+    {
+        let url = base_url + entry_url;
+        fetch_data(url, 'GET');
+    }
+
+    function get_one()
+    {
+        if (document.getElementById("get_id").value == "") {
+            alert("entry id connot be empty");
+            return;
+        }
+        if (document.getElementById("get_id").value == "filter" || document.getElementById("get_id").value.startsWith("filter?"))
+        {
+            alert("please go to filter section to test filters");
+            return;
+        }
+        let url = base_url + entry_url + "/" + document.getElementById("get_id").value;
+        fetch_data(url, 'GET');
+    }
+
+    function get_with_filter()
+    {
+        let url = base_url + entry_url + filter_url + "?" + document.getElementById("filter").value;
+        fetch_data(url, 'GET');
+    }
+
+    function get_type_one()
+    {
+        let lganames = document.getElementById("type_one_filter").value.split(";");
+        let lga;
+        let url = base_url + entry_url + filter_url + "?";
+        let i;
+        for (i = 0; i < lganames.length; i++) {
+            if (lganames[i].trim() == ""){
+                continue;
+            }
+            if (i != 0) {
+                url += " or ";
+            }
+            url += "lgaName eq " + lganames[i].trim();
+        }
+        fetch_data(url, 'GET');
+    }
+
+    function get_type_two()
+    {
+        let url = base_url + entry_url + filter_url;
+        url += "?" + "lgaName eq " + document.getElementById("type_two_filter_lganame").value;
+        url += " and ";
+        url += "year eq " + document.getElementById("type_two_filter_year").value;
+        fetch_data(url, 'GET');
+    }
+
+    function clear_response()
+    {
+        document.getElementById("response").innerHTML = "";
+        document.getElementById("status_code").innerHTML = "";
+    }
+
+</script>
+<div id="main">
+    <h1>NSW Crime Data Import and Publication Service</h1>
+    <h2>Login</h2>
+    <h4>Input username and password, then click the login button. Login info will be shown below.</h4>
+    <label>username: </label> <input type="text"  name='username' style="font-size:16px" id="username"/>
+    Sample: admin, guest<br>
+    <label>password: </label> <input type="password" name='password' style="font-size:16px" id="password"/>
+    Sample: admin, guest<br><br>
+    <label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>
+    <label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>
+    <input type='button' name='btn_login' value='login' style="font-size:16px" onclick='login()' />
+    <h6></h6>
+    <div id="login_result"></div>
+    <div hidden id="token_div">
+        <input type="text"  name="token" value="" id="token"/>
+    </div>
+
+    <h2>Import LGA Data</h2>
+    <h4>Import crime statistics of a LGA by its name. Input the LGA name, then click the import button. LGA names are NOT case sensitive.</h4>
+    <label>LGA name: </label> <input type="text" name='lganame' style="font-size:16px" id="lganame"/>
+    <input type='button' name='btn_import_lga' value='import' style="font-size:16px" onclick='import_lga()' />
+    Sample: Blue Mountains, Randwick, etc.<br>
+    <h4>Import crime statistics of LGAs by a postcode. Input the postcode, then click the import button.</h4>
+    <label>postcode: </label><label>&nbsp;&nbsp;&nbsp;</label><input type="text" name='postcode' style="font-size:16px" id="postcode"/>
+    <input type='button' name='btn_import_postcode' value='import' style="font-size:16px" onclick='import_postcode()' />
+    Sample: 2450, 2550, etc.<br>
+    <h4>Note: The result will be displayed in the response section. Note down the ids for further use.</h4>
+
+    <h2>Delete an Entry</h2>
+    <h4>Delete an entry by its id. Input the id, then click the delete button.</h4>
+    <label>entry id: </label> <input type="text" name='delete_id' style="font-size:16px" size="10" id="delete_id"/>
+    <input type='button' name='btn_delete' value='delete' style="font-size:16px" onclick='delete_one()' />
+    Sample: 1, 2, 3, etc. Use the ids returned when you import or retrieve data.<br>
+    <h4>Note: The result will be displayed in the response section.</h4>
+
+    <h2>Get All Entries</h2>
+    <h4>Click the buttion below to retrieve the whole collection. This may take time.</h4>
+    <input type='button' name='btn_get_all' value='get all entries' style="font-size:16px" onclick='get_all()' />
+    <h4>Note: The result will be displayed in the response section. Note down the ids for further use.</h4>
+
+    <h2>Get a Single Entry</h2>
+    <h4>Retrieve an entry by its id. Input the id, then click the get button.</h4>
+    <label>entry id: </label> <input type="text" name='get_id' style="font-size:16px" size="10" id="get_id"/>
+    <input type='button' name='btn_get_one' value='get' style="font-size:16px" onclick='get_one()' />
+    Sample: 1, 2, 3, etc. Use the ids returned when you import or retrieve data.<br>
+    <h4>Note: The result will be displayed in the response section.</h4>
+
+    <h2>Get Entries with Filter</h2>
+    <h4>Retrieve specified data with a filter. Input as required, then click the corresponding get button. LGA names are NOT case sensitive.</h4>
+    <label>Type one filter: input single or multiple LGA names, separated by <b>semicolon</b>.</label><br><br>
+    <label>LGA names: </label>
+    <input type="text"  name='type_one_filter' style="font-size:16px" size="40" id="type_one_filter"/>
+    <input type='button' name='btn_get_type_one' value='get' style="font-size:16px" onclick='get_type_one()' /><br><br>
+    Sample: Blue Mountains; Randwick; ...<br><br>
+    <label>Type two filter: input a LGA name and a year.</label>
+    <input type='button' name='btn_get_type_two' value='get' style="font-size:16px" onclick='get_type_two()' /><br><br>
+    <label>LGA name: </label>
+    <input type="text"  name='type_two_filter_lganame' style="font-size:16px" id="type_two_filter_lganame"/>
+    Sample: Blue Mountains, Randwick, etc.<br>
+    <label>year: </label><label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>
+    <input type="text" name='type_two_filter_year' style="font-size:16px" id="type_two_filter_year"/>
+    Sample: 2013, 2014, etc<br>
+    <h4>For fully test, you can also input the full string of filter.</h4>
+    <label>Filter: </label> <input type="text" name='filter' id="filter" style="font-size:16px" value="lgaName eq Randwick and year eq 2014" size="50"/>
+    <input type='button' name='btn_get_with_filter' value='get' style="font-size:16px" onclick='get_with_filter()' /><br><br>
+    Sample for type 1 filter: lgaName eq Blue Mountains or lgaName eq Randwick or ...<br>
+    Sample for type 2 filter: lgaName eq Blue Mountains and year eq 2014<br>
+    Blue Mountains and Randwick can be replaced by LGA names, 2014 can be replaced by another year.<br>
+    For type 1 filter, one or more LGA names can be inputed, separated by "or".<br>
+    <h4>Note: The result will be displayed in the response section.</h4>
+
+    <h2>Response</h2>
+    <h4>Select the response MIME type you want.</h4>
+    <input type="radio" id="type1" name="accept" value="application/json">
+    <label for="type1">application/json</label>
+    <input type="radio" id="type2" name="accept" value="application/atom+xml" checked>
+    <label for="type2">application/atom+xml</label>
+    <h4>The result will be displayed in the text area below. Use the clear response button to clear the text area.</h4>
+    <input type='button' name='clear_response' value='clear response' style="font-size:16px" onclick='clear_response()' />
+    <label>status code: </label>
+    <label id="status_code"></label><br><br>
+    <textarea id="response" rows="12" cols="90" style="font-size:16px" readonly></textarea>
+</div>
+</body>
+</html>
